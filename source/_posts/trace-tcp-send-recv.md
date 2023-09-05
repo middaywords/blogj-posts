@@ -1,5 +1,5 @@
 ---
-title: trace tcp send/recv
+title: trace tcp connect/send/recv
 date: 2023-08-24 13:19:45
 tags:
 - tcp
@@ -36,11 +36,12 @@ Codename:	jammy
 ftrace 有 function 和 function_graph 两种模式，这里面我们用 function graph 来看调用路径
 
 ```shell
+cd /sys/kernel/debug/tracing
 echo 0 > tracing_on # 关闭之前可能仍在tracing的任务
 echo > trace # 清空之前的trace内容
 echo function_graph > current_tracer # 设置tracer为function graph模式
 echo > set_ftrace_filter # 清空输出中的filter
-echo > tcp_v4_connect > 
+echo tcp_v4_connect > set_graph_function
 echo 1 > tracing_on # 开始tracing
 echo 0 > tracing_on # 停止tracing
 ```
@@ -89,8 +90,6 @@ tcp_v4_connect
             ip_queue_xmit
         inet_csk_reset_xmit_timer // 启动重传定时器
 ```
-
-Ip_queue_xmit 就放在后面 tcp_sendmsg 里面讲吧， 
 
 ### Server send back SYN+ACK(LISTEN->SYN_RECV)
 

@@ -1,11 +1,17 @@
 ---
-title: bpf sock ops
+title: bpf struct ops
 date: 2023-08-24 10:49:35
 tags:
 - bpf
 ---
 
-## bpf_sock_ops
+## bpf_struct_ops
+
+struct_ops != sock_ops
+
+tcp_ca PR link: 
+
+
 
 list of sock_ops:
 
