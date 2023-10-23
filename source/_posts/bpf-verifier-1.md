@@ -1,11 +1,11 @@
 ---
-title: bpf verifier
+title: bpf verifier (1)
 date: 2023-10-01 15:55:12
 tags:
 - bpf
 ---
 
-## bpf verifier(1)
+## bpf verifier (1)
 
 [TOC]
 
@@ -28,6 +28,42 @@ BPF 程序可以调用核心内核（而不是内核模块）预定义的一些�
 - `r6` - `r9` 由被调用方（callee）保存，在函数返回之后调用方（caller）可以读取
 
 `r1` - `r5` 寄存器是 **scratch registers**，意思是说，如果要在多次辅助函数调用之 间重用这些寄存器内的值，那 BPF 程序需要负责将这些值**临时转储（spill）到 BPF 栈**上 ，或者保存到被调用方（callee）保存的寄存器中。**Spilling**（倒出/转储） 的意思是这些寄存器内的变量被移到了 BPF 栈中。相反的操作，即将变量从 BPF 栈移回寄 存器，称为 **filling**（填充）。**spilling/filling 的原因是寄存器数量有限**。
+
+more about spilling and filling：比如写下面这种程序就会有 spill/refill 了。
+
+```c
+int example_bpf_program(struct __sk_buff *skb) {
+    int a = 1;
+    int b = 2;
+    int c = 3;
+    int d = 4;
+
+    int result = a + b + c + d;
+
+    return result;
+}
+/*
+example_bpf_program:                    # @example_bpf_program
+        *(u64 *)(r10 - 8) = r1
+        r1 = 1
+        *(u32 *)(r10 - 12) = r1
+        r1 = 2
+        *(u32 *)(r10 - 16) = r1
+        r1 = 3
+        *(u32 *)(r10 - 20) = r1
+        r1 = 4
+        *(u32 *)(r10 - 24) = r1
+        r1 = *(u32 *)(r10 - 12)
+        r2 = *(u32 *)(r10 - 16)
+        r1 += r2
+        r2 = *(u32 *)(r10 - 20)
+        r1 += r2
+        r2 = *(u32 *)(r10 - 24)
+        r1 += r2
+        *(u32 *)(r10 - 28) = r1
+        exit
+*/
+```
 
 BPF 程序开始执行时，**`r1` 寄存器中存放的是程序的上下文**（context）。上下文就是 **程序的输入参数**（和典型 C 程序的 `argc/argv` 类似）。**BPF 只能在单个上下文中 工作**（restricted to work on a single context）。这个**上下文是由程序类型定义的**， 例如，网络程序可以将网络包的内核表示（`skb`）作为输入参数。
 
