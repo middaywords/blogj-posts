@@ -7,6 +7,8 @@ tags:
 
 # bpf verifier (2)
 
+[TOC]
+
 这一节结合 kernel docs 里 verifier 的介绍和源码一起学习一下 bpf verifier。
 
 eBPF 程序的安全性由两个步骤确定。
@@ -50,164 +52,49 @@ bpf_exit
 
 
 
-## 如何理解 verifier logs
 
-翻了好久源码，终于找到了，比如我们拿 `vfsstat.py` in bcc 作为例子来分析（为什么选这个呢？因为简单）
 
-bpf 程序代码：
+## verification process
 
-```c
-static void stats_try_increment(int key) {
-    stats.atomic_increment(key);
-}
+翻来覆去看了好多资料，最后发现 learning ebpf 的书里面有讲 bpf verifier.....overall, verifier 会检查所有的执行路径。
 
-KFUNC_PROBE(vfs_write) {
-    stats_try_increment(S_WRITE);
-    return 0; 
-}
+它会逐条检查指令，维护 bpf_reg_state。
+
+每次 verfier 来到一个分支，在那里必须决定是按顺序继续，还是跳转到不同的指令，验证者将所有寄存器当前状态的副本推入堆栈并探索可能的路径之一。它继续计算指令，直到它在程序结束时达到返回值(或达到它将处理的指令数量的限制，目前是一百万条指令)，此时它从堆栈中弹出一个分支以进行下一次计算。如果发现可能导致无效操作的指令，则验证失败。
+
+验证每一种可能性是非常消耗计算资源的，所以有一些优化，诸如 剪枝 state pruning。在相同位置的指令，寄存器状态相同的时候，则跳过。
+
+之前有对比，在每个 jmp 指令的前后，都会暂存 pruning state。
+
+## visual control flow of bpf 
+
+```shell
+~/proj/learning-ebpf/chapter6 (main ✗) sudo bpftool prog dump xlated id 4050 visual > out-4050.dot
+~/proj/learning-ebpf/chapter6 (main ✗) dodot -Tpng out-4050.dot  > out-4050.png
 ```
 
-汇编代码：
+![out-4050](../figures/out-4050.png)
 
-```
-root@ubuntu2204:/home/kanxu# bpftool prog dump xlated id 1570
-int kfunc__vmlinux__vfs_write(unsigned long long * ctx):
-; KFUNC_PROBE(vfs_write)        { stats_try_increment(S_WRITE); return 0; }
-   0: (b7) r1 = 2
-; ({ typeof(stats.key) _key = key; typeof(stats.leaf) *_leaf = bpf_map_lookup_elem_(bpf_pseudo_fd(1, -1), &_key); if (_leaf) lock_xadd(_leaf, 1);});
-   1: (63) *(u32 *)(r10 -4) = r1
-; ({ typeof(stats.key) _key = key; typeof(stats.leaf) *_leaf = bpf_map_lookup_elem_(bpf_pseudo_fd(1, -1), &_key); if (_leaf) lock_xadd(_leaf, 1);});
-   2: (18) r1 = map[id:334]
-   4: (bf) r2 = r10
-;
-   5: (07) r2 += -4
-; return bpf_map_lookup_elem((void *)map, key);
-   6: (07) r1 += 272
-   7: (61) r0 = *(u32 *)(r2 +0)
-   8: (35) if r0 >= 0x6 goto pc+3
-   9: (67) r0 <<= 3
-  10: (0f) r0 += r1
-  11: (05) goto pc+1
-  12: (b7) r0 = 0
-; ({ typeof(stats.key) _key = key; typeof(stats.leaf) *_leaf = bpf_map_lookup_elem_(bpf_pseudo_fd(1, -1), &_key); if (_leaf) lock_xadd(_leaf, 1);});
-  13: (15) if r0 == 0x0 goto pc+2
-  14: (b7) r1 = 1
-; ({ typeof(stats.key) _key = key; typeof(stats.leaf) *_leaf = bpf_map_lookup_elem_(bpf_pseudo_fd(1, -1), &_key); if (_leaf) lock_xadd(_leaf, 1);});
-  15: (db) lock *(u64 *)(r0 +0) += r1
-; KFUNC_PROBE(vfs_write)        { stats_try_increment(S_WRITE); return 0; }
-  16: (b7) r0 = 0
-  17: (95) exit
-```
+## verifying details
 
-```
-func#0 @0
-0: R1=ctx(id=0,off=0,imm=0) R10=fp0
-; KFUNC_PROBE(vfs_write)        { stats_try_increment(S_WRITE); return 0; }
-0: (b7) r1 = 2
-1: R1_w=inv2 R10=fp0
-; ({ typeof(stats.key) _key = key; typeof(stats.leaf) *_leaf = bpf_map_lookup_elem_(bpf_pseudo_fd(1, -1), &_key); if (_leaf) lock_xadd(_leaf, 1);});
-1: (63) *(u32 *)(r10 -4) = r1
-2: R1_w=inv2 R10=fp0 fp-8=mmmm????
-; ({ typeof(stats.key) _key = key; typeof(stats.leaf) *_leaf = bpf_map_lookup_elem_(bpf_pseudo_fd(1, -1), &_key); if (_leaf) lock_xadd(_leaf, 1);});
-2: (18) r1 = 0xffff9c7cc9ec3e00
-4: R1_w=map_ptr(id=0,off=0,ks=4,vs=8,imm=0) R10=fp0 fp-8=mmmm????
-4: (bf) r2 = r10
-5: R1_w=map_ptr(id=0,off=0,ks=4,vs=8,imm=0) R2_w=fp0 R10=fp0 fp-8=mmmm????
-;
-5: (07) r2 += -4
-6: R1_w=map_ptr(id=0,off=0,ks=4,vs=8,imm=0) R2_w=fp-4 R10=fp0 fp-8=mmmm????
-; return bpf_map_lookup_elem((void *)map, key);
-6: (85) call bpf_map_lookup_elem#1
-7: R0_w=map_value_or_null(id=1,off=0,ks=4,vs=8,imm=0) R10=fp0 fp-8=mmmm????
-; ({ typeof(stats.key) _key = key; typeof(stats.leaf) *_leaf = bpf_map_lookup_elem_(bpf_pseudo_fd(1, -1), &_key); if (_leaf) lock_xadd(_leaf, 1);});
-7: (15) if r0 == 0x0 goto pc+2
- R0_w=map_value(id=0,off=0,ks=4,vs=8,imm=0) R10=fp0 fp-8=mmmm????
-8: R0_w=map_value(id=0,off=0,ks=4,vs=8,imm=0) R10=fp0 fp-8=mmmm????
-8: (b7) r1 = 1
-9: R0_w=map_value(id=0,off=0,ks=4,vs=8,imm=0) R1_w=inv1 R10=fp0 fp-8=mmmm????
-; ({ typeof(stats.key) _key = key; typeof(stats.leaf) *_leaf = bpf_map_lookup_elem_(bpf_pseudo_fd(1, -1), &_key); if (_leaf) lock_xadd(_leaf, 1);});
-9: (db) lock *(u64 *)(r0 +0) += r1
- R0_w=map_value(id=0,off=0,ks=4,vs=8,imm=0) R1_w=inv1 R10=fp0 fp-8=mmmm????
- R0_w=map_value(id=0,off=0,ks=4,vs=8,imm=0) R1_w=inv1 R10=fp0 fp-8=mmmm????
-10: R0=map_value(id=0,off=0,ks=4,vs=8,imm=0) R1=inv1 R10=fp0 fp-8=mmmm????
-; KFUNC_PROBE(vfs_write)        { stats_try_increment(S_WRITE); return 0; }
-10: (b7) r0 = 0
-11: R0_w=inv0 R1=inv1 R10=fp0 fp-8=mmmm????
-11: (95) exit
-```
+* verifying helper function
 
-相关的 log 打印逻辑在 
+source code 搜索 `strcut bpf_func_proto`，它定义了 helper function 的参数要求，以及定义的变量会在一些函数中被引用，限制在哪些 bpf program 类型中可以使用。
 
-```c
-static int do_check(struct bpf_verifier_env *env)
-{
-    // ...
-		if (env->log.level & BPF_LOG_LEVEL2 ||
-		    (env->log.level & BPF_LOG_LEVEL && do_print_state)) {
-			if (env->log.level & BPF_LOG_LEVEL2)
-				verbose(env, "%d:", env->insn_idx);
-			else
-				verbose(env, "\nfrom %d to %d%s:",
-					env->prev_insn_idx, env->insn_idx,
-					env->cur_state->speculative ?
-					" (speculative execution)" : "");
-            // 打印 verifer 的所有寄存器状态
-			print_verifier_state(env, state->frame[state->curframe]);
-			do_print_state = false;
-		}
+* checking license
 
-		if (env->log.level & BPF_LOG_LEVEL) {
-			const struct bpf_insn_cbs cbs = {
-				.cb_call	= disasm_kfunc_name,
-				.cb_print	= verbose,
-				.private_data	= env,
-			};
-            // 打印原来的 bpf 程序的代码，根据 insn_idx 找到代码
-			verbose_linfo(env, env->insn_idx, "; ");
-			verbose(env, "%d: ", env->insn_idx);
-            // 打印 bpf 汇编指令
-			print_bpf_insn(&cbs, insn, env->allow_ptr_leaks);
-		}
-}
-```
+比如需要有 GPL 许可证，才允许调用 bpf_probe_read_kernel 
 
+* checking mem access
+* checking ptrs before dereferencing them
 
+* accessing context 
 
-可以看到有两种指令比如，26 序号有两条指令。
+每个函数都有 context 参数，但是context参数可能只有一部分可以访问，比如 tracepoint，只有部分 tracepoint data 可以访问，不同tracepoint 的 common fields 是无法访问的。
 
-```
-26: R0_w=inv(id=0) R1_w=map_ptr(id=0,off=0,ks=4,vs=8,imm=0) R2_w=fp-4 R3_w=fp0 R6=inv(id=2) R7=invP0 R10=fp0 fp-8=mmmm???? fp-16_w=mmmmmmmm
-26: (07) r3 += -16
-```
-
-其中大写寄存器的是 verifier state，其相关的内容在 `kernel/bpf/verifier.c`，
-
-```c
-// kernel/bpf/verifier.c
-/* string representation of 'enum bpf_reg_type' */
-static const char * const reg_type_str[] = {
-	[NOT_INIT]		= "?",
-	[SCALAR_VALUE]		= "inv",
-    //...
-};
-
-static char slot_type_char[] = {
-	[STACK_INVALID]	= '?',
-    // ...
-};
-
-static void print_verifier_state(struct bpf_verifier_env *env,
-				 const struct bpf_func_state *state);
-```
-
-小写的是 指令汇编代码，相关内容在，在 kernel/bpf/disasm.c 里。
-
-```c
-// kernel/bpf/disasm.c
-void print_bpf_insn(const struct bpf_insn_cbs *cbs,
-		    const struct bpf_insn *insn,
-		    bool allow_ptr_leaks);
-```
+* running to completion 能够结束
+* checking return code 检查 R0 返回值
+* unreachable instruction 一般编译器编译出来的没有这种错误。
 
 
 

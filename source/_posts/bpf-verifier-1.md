@@ -29,7 +29,7 @@ BPF 程序可以调用核心内核（而不是内核模块）预定义的一些�
 
 `r1` - `r5` 寄存器是 **scratch registers**，意思是说，如果要在多次辅助函数调用之 间重用这些寄存器内的值，那 BPF 程序需要负责将这些值**临时转储（spill）到 BPF 栈**上 ，或者保存到被调用方（callee）保存的寄存器中。**Spilling**（倒出/转储） 的意思是这些寄存器内的变量被移到了 BPF 栈中。相反的操作，即将变量从 BPF 栈移回寄 存器，称为 **filling**（填充）。**spilling/filling 的原因是寄存器数量有限**。
 
-more about spilling and filling：比如写下面这种程序就会有 spill/refill 了。
+more about spilling and filling：比如写下面这种程序就会有 spill/refill 了。https://godbolt.org/z/nPqffv3fe
 
 ```c
 int example_bpf_program(struct __sk_buff *skb) {
@@ -191,6 +191,22 @@ BPF_RAW_INSN(BPF_LD | BPF_IMM | BPF_DW, 0, BPF_REG_1, 0, 1),
 2. address leakage
 3. Improper termination
 4. violation of spec
+
+按照 maintainer 最初始的 bpf verifier patch [PATCH v5 net-next 14/29\] bpf: verifier (add verifier core) - Alexei Starovoitov (kernel.org)](https://lkml.kernel.org/netdev/1408911690-7598-15-git-send-email-ast@plumgrid.com/)  的说法，则是
+
+```
+This way it walks all possible paths through the program and checks all
+possible values of registers. While doing so, it checks for:
+- invalid instructions
+- uninitialized register access
+- uninitialized stack access
+- misaligned stack access
+- out of range stack access
+- invalid calling convention
+- instruction encoding is not using reserved fields
+```
+
+
 
 为了保证这些安全，bpf verifier 非常暴力，各种 helper function, params, instruction, register&value 都检查一遍
 
