@@ -1,5 +1,5 @@
 ---
-title: linux tc mq
+title: linux tc (4) - mq
 date: 2024-01-08 08:44:47
 tags:
 - tc

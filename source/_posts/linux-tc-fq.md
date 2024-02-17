@@ -1,5 +1,5 @@
 ---
-title: linux traffic control - fair queue(tc fq)
+title: linux tc (3) - fq
 date: 2024-01-02 09:06:49
 tags:
 - linux
