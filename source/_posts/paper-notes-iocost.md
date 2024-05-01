@@ -1,9 +1,10 @@
 ---
-title: paper-notes: iocost[ASPLOS22]
+title: paper-notes iocost[ASPLOS22]
 date: 2024-02-21 21:44:24
 tags:
 - linux
 - storage
+- paper
 ---
 
 # [ASPLOS22] iocost: Block IO Control for Containers in Datacenters

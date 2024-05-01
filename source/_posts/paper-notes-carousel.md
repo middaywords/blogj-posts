@@ -1,7 +1,9 @@
 ---
-title: paper-notes: carousel[sigcomm17]
+title: paper-notes carousel[sigcomm17]
 date: 2024-02-13 21:50:17
 tags:
+- paper
+- network
 ---
 
 # [SIGCOMM17] Carousel: Scalable Traffic Shaping at End Hosts

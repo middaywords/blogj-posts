@@ -35,10 +35,10 @@ annotations:
 
 I setup two tcp connections for test, one is TCP_RR for measuring latency and the other using TCP_STREAM for measuring throughput. The test results are shown below:
 
-| Data flow direction                                   | Throughput(Mbps) for TCP_STREAM flow | Latency(us) |
-| ----------------------------------------------------- | ------------------------------------ | ----------- |
-| netperf-client -> netperf-server (egress rate limit)  | 95.6                                 | 10760.05    |
-| netperf-server -> netperf-client (ingress rate limit) | 95.6                                 | 226120.05   |
+| Data flow direction                                   | Throughput(Mbps) for TCP_STREAM flow | Latency(us) for TCP_RR flow |
+| ----------------------------------------------------- | ------------------------------------ | --------------------------- |
+| netperf-client -> netperf-server (egress rate limit)  | 95.6                                 | 10760.05                    |
+| netperf-server -> netperf-client (ingress rate limit) | 95.6                                 | 226120.05                   |
 
 ## analysis
 
@@ -78,3 +78,67 @@ Because of two points above,
 1. for egress, I suggest making the queue depth a configurable value. adding a annotation for it. Actually, the whole pod traffic sharing the same queue is not good anyway, we need fine-grained qos. control the queue depth can make it more flexible for users.
 2. for ingress, i suggest making it zero queue(policing) to bring quick feedback to sender. 
 
+
+
+packet trip
+
+```
+[13:24:29.851950] [4026533119] none                 I_request:10.244.162.130->10.244.110.133 id:4864 seq:15         FUNC:ip_output     skb:18446619792684859904 skb_data_len:84
+[13:24:29.852048] [4026533119] eth0                 I_request:10.244.162.130->10.244.110.133 id:4864 seq:15         FUNC:ip_finish_output     skb:18446619792684859904 skb_data_len:84
+[13:24:29.852079] [4026533119] eth0                 I_request:10.244.162.130->10.244.110.133 id:4864 seq:15         FUNC:__ip_finish_output     skb:18446619792684859904 skb_data_len:84
+[13:24:29.852106] [4026533119] eth0                 I_request:10.244.162.130->10.244.110.133 id:4864 seq:15         FUNC:__dev_queue_xmit     skb:18446619792684859904 skb_data_len:98
+[13:24:29.852137] [4026532336] cali9e263f09bd5      I_request:10.244.162.130->10.244.110.133 id:4864 seq:15         FUNC:netif_rx     skb:18446619792684859904 skb_data_len:84
+[13:24:29.852174] [4026532336] cali9e263f09bd5      I_request:10.244.162.130->10.244.110.133 id:4864 seq:15         FUNC:__netif_receive_skb     skb:18446619792684859904 skb_data_len:84
+[13:24:29.852206] [4026532336] cali9e263f09bd5      I_request:10.244.162.130->10.244.110.133 id:4864 seq:15         FUNC:ip_rcv     skb:18446619792684859904 skb_data_len:84
+[13:24:29.852243] [4026532336] cali9e263f09bd5      I_request:10.244.162.130->10.244.110.133 id:4864 seq:15         FUNC:trace_ip_rcv_core     skb:18446619792684859904 skb_data_len:84
+[13:24:29.852302] [4026532336] cali9e263f09bd5      I_request:10.244.162.130->10.244.110.133 id:4864 seq:15         FUNC:ip_rcv_finish     skb:18446619792684859904 skb_data_len:84
+[13:24:29.852343] [4026532336] cali9e263f09bd5      I_request:10.244.162.130->10.244.110.133 id:4864 seq:15         FUNC:ip_output     skb:18446619792684859904 skb_data_len:84
+[13:24:29.852378] [4026532336] tunl0                I_request:10.244.162.130->10.244.110.133 id:4864 seq:15         FUNC:ip_finish_output     skb:18446619792684859904 skb_data_len:84
+[13:24:29.852410] [4026532336] tunl0                I_request:10.244.162.130->10.244.110.133 id:4864 seq:15         FUNC:__ip_finish_output     skb:18446619792684859904 skb_data_len:84
+[13:24:29.852447] [4026532336] tunl0                I_request:10.244.162.130->10.244.110.133 id:4864 seq:15         FUNC:__dev_queue_xmit     skb:18446619792684859904 skb_data_len:84
+[13:24:29.852517] [4026532332] tunl0                I_request:10.244.162.130->10.244.110.133 id:4864 seq:15         FUNC:napi_gro_receive     skb:18446619792684859904 skb_data_len:84
+[13:24:29.852557] [4026532332] tunl0                I_request:10.244.162.130->10.244.110.133 id:4864 seq:15         FUNC:trace_ip_rcv_core     skb:18446619792684859904 skb_data_len:84
+[13:24:29.852594] [4026532332] tunl0                I_request:10.244.162.130->10.244.110.133 id:4864 seq:15         FUNC:ip_output     skb:18446619792684859904 skb_data_len:84
+[13:24:29.852628] [4026532332] cali728b19aa4b2      I_request:10.244.162.130->10.244.110.133 id:4864 seq:15         FUNC:ip_finish_output     skb:18446619792684859904 skb_data_len:84
+[13:24:29.852660] [4026532332] cali728b19aa4b2      I_request:10.244.162.130->10.244.110.133 id:4864 seq:15         FUNC:__ip_finish_output     skb:18446619792684859904 skb_data_len:84
+[13:24:29.852707] [4026532332] cali728b19aa4b2      I_request:10.244.162.130->10.244.110.133 id:4864 seq:15         FUNC:__dev_queue_xmit     skb:18446619792684859904 skb_data_len:98
+[13:24:29.852753] [4026532876] eth0                 I_request:10.244.162.130->10.244.110.133 id:4864 seq:15         FUNC:netif_rx     skb:18446619792684859904 skb_data_len:84
+[13:24:29.852802] [4026532876] eth0                 I_request:10.244.162.130->10.244.110.133 id:4864 seq:15         FUNC:__netif_receive_skb     skb:18446619792684859904 skb_data_len:84
+[13:24:29.852838] [4026532876] eth0                 I_request:10.244.162.130->10.244.110.133 id:4864 seq:15         FUNC:ip_rcv     skb:18446619792684859904 skb_data_len:84
+[13:24:29.852876] [4026532876] eth0                 I_request:10.244.162.130->10.244.110.133 id:4864 seq:15         FUNC:trace_ip_rcv_core     skb:18446619792684859904 skb_data_len:84
+[13:24:29.852914] [4026532876] eth0                 I_request:10.244.162.130->10.244.110.133 id:4864 seq:15         FUNC:ip_rcv_finish     skb:18446619792684859904 skb_data_len:84
+[13:24:29.852955] [4026532876] none                 I_reply:10.244.110.133->10.244.162.130 id:4864 seq:15           FUNC:ip_output     skb:18446619792684866816 skb_data_len:84
+[13:24:29.852994] [4026532876] eth0                 I_reply:10.244.110.133->10.244.162.130 id:4864 seq:15           FUNC:ip_finish_output     skb:18446619792684866816 skb_data_len:84
+[13:24:29.853032] [4026532876] eth0                 I_reply:10.244.110.133->10.244.162.130 id:4864 seq:15           FUNC:__ip_finish_output     skb:18446619792684866816 skb_data_len:84
+[13:24:29.853071] [4026532876] eth0                 I_reply:10.244.110.133->10.244.162.130 id:4864 seq:15           FUNC:__dev_queue_xmit     skb:18446619792684866816 skb_data_len:98
+[13:24:29.853108] [4026532332] cali728b19aa4b2      I_reply:10.244.110.133->10.244.162.130 id:4864 seq:15           FUNC:netif_rx     skb:18446619792684866816 skb_data_len:84
+[13:24:29.853141] [4026532332] cali728b19aa4b2      I_reply:10.244.110.133->10.244.162.130 id:4864 seq:15           FUNC:__netif_receive_skb     skb:18446619792684866816 skb_data_len:84
+[13:24:29.853181] [4026532332] bwp71e3876d8eb0      I_reply:10.244.110.133->10.244.162.130 id:4864 seq:15           FUNC:__dev_queue_xmit     skb:18446619792684866816 skb_data_len:98
+[13:24:29.853240] [4026532332] cali728b19aa4b2      I_reply:10.244.110.133->10.244.162.130 id:4864 seq:15           FUNC:__netif_receive_skb     skb:18446619792684866816 skb_data_len:84
+[13:24:29.853281] [4026532332] cali728b19aa4b2      I_reply:10.244.110.133->10.244.162.130 id:4864 seq:15           FUNC:ip_rcv     skb:18446619792684866816 skb_data_len:84
+[13:24:29.853313] [4026532332] cali728b19aa4b2      I_reply:10.244.110.133->10.244.162.130 id:4864 seq:15           FUNC:trace_ip_rcv_core     skb:18446619792684866816 skb_data_len:84
+[13:24:29.853347] [4026532332] cali728b19aa4b2      I_reply:10.244.110.133->10.244.162.130 id:4864 seq:15           FUNC:ip_rcv_finish     skb:18446619792684866816 skb_data_len:84
+[13:24:29.853376] [4026532332] cali728b19aa4b2      I_reply:10.244.110.133->10.244.162.130 id:4864 seq:15           FUNC:ip_output     skb:18446619792684866816 skb_data_len:84
+[13:24:29.853405] [4026532332] tunl0                I_reply:10.244.110.133->10.244.162.130 id:4864 seq:15           FUNC:ip_finish_output     skb:18446619792684866816 skb_data_len:84
+[13:24:29.853438] [4026532332] tunl0                I_reply:10.244.110.133->10.244.162.130 id:4864 seq:15           FUNC:__ip_finish_output     skb:18446619792684866816 skb_data_len:84
+[13:24:29.853473] [4026532332] tunl0                I_reply:10.244.110.133->10.244.162.130 id:4864 seq:15           FUNC:__dev_queue_xmit     skb:18446619792684866816 skb_data_len:84
+[13:24:29.853513] [4026532336] tunl0                I_reply:10.244.110.133->10.244.162.130 id:4864 seq:15           FUNC:napi_gro_receive     skb:18446619792684866816 skb_data_len:84
+[13:24:29.853549] [4026532336] tunl0                I_reply:10.244.110.133->10.244.162.130 id:4864 seq:15           FUNC:trace_ip_rcv_core     skb:18446619792684866816 skb_data_len:84
+[13:24:29.853578] [4026532336] tunl0                I_reply:10.244.110.133->10.244.162.130 id:4864 seq:15           FUNC:ip_output     skb:18446619792684866816 skb_data_len:84
+[13:24:29.853614] [4026532336] cali9e263f09bd5      I_reply:10.244.110.133->10.244.162.130 id:4864 seq:15           FUNC:ip_finish_output     skb:18446619792684866816 skb_data_len:84
+[13:24:29.853646] [4026532336] cali9e263f09bd5      I_reply:10.244.110.133->10.244.162.130 id:4864 seq:15           FUNC:__ip_finish_output     skb:18446619792684866816 skb_data_len:84
+[13:24:29.853681] [4026532336] cali9e263f09bd5      I_reply:10.244.110.133->10.244.162.130 id:4864 seq:15           FUNC:__dev_queue_xmit     skb:18446619792684866816 skb_data_len:98
+[13:24:29.853717] [4026533119] eth0                 I_reply:10.244.110.133->10.244.162.130 id:4864 seq:15           FUNC:netif_rx     skb:18446619792684866816 skb_data_len:84
+[13:24:29.853763] [4026533119] eth0                 I_reply:10.244.110.133->10.244.162.130 id:4864 seq:15           FUNC:__netif_receive_skb     skb:18446619792684866816 skb_data_len:84
+[13:24:29.853823] [4026533119] eth0                 I_reply:10.244.110.133->10.244.162.130 id:4864 seq:15           FUNC:ip_rcv     skb:18446619792684866816 skb_data_len:84
+[13:24:29.853854] [4026533119] eth0                 I_reply:10.244.110.133->10.244.162.130 id:4864 seq:15           FUNC:trace_ip_rcv_core     skb:18446619792684866816 skb_data_len:84
+[13:24:29.853892] [4026533119] eth0                 I_reply:10.244.110.133->10.244.162.130 id:4864 seq:15           FUNC:ip_rcv_finish     skb:18446619792684866816 skb_data_len:84
+```
+
+
+
+### updated on 0417
+
+in this PR https://github.com/containernetworking/plugins/pull/1025 , i reported this problem and find that the other PR https://github.com/containernetworking/plugins/pull/921 switched to HTB, 
+
+actually, HTB share this problem, but it can avoid the problem by classifying more traffic classes.

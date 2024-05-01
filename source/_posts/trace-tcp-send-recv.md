@@ -205,7 +205,7 @@ tcp_sendmsg/tcp_sendmsg_locked
     		tcp_write_xmit
     			tcp_mtu_probe
     			tcp_tso_segs
-    			tcp_small_queue_check // bpf ?
+    			tcp_small_queue_check // TSQ feature
     			__tcp_transmit_skb
 ----------------
 __tcp_transmit_skb
