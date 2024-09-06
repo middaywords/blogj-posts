@@ -1,0 +1,341 @@
+---
+title: sharing about bpf functions
+date: 2024-08-01 18:39:09
+tags:
+- bpf
+- linux
+---
+
+# sharing about bpf functions
+
+basically, for bpf functions we may refer to 
+
+* bpf helper function
+* Bpf2bpf call function
+* tail call function
+
+In this post, we may take a look at instruction level, about how they work
+
+## bpf helper function
+
+- BPF helper function
+
+- - Helper functions are used by eBPF programs to interact with the system, or with the context in which they work. For instance, they can be used to
+
+  - - print debugging messages
+    - get the time since the system was booted
+    - interact with eBPF maps
+    - manipulate network packets.
+
+docs: https://man7.org/linux/man-pages/man7/bpf-helpers.7.html
+
+for helper fucntion, we mainly discuss two aspects:
+
+### How does bpf prog know where the helper function is?
+
+we take the example below for reference.
+
+```
+// helper_func_ex1.bpf.c
+#include <linux/bpf.h>
+#include <bpf/bpf_helpers.h>
+
+
+#define __unused __attribute__((unused))
+
+char __license[] SEC("license") = "GPL";
+
+SEC("tc")
+int helperfunc_entryfunc(struct __sk_buff *skb __unused)
+{
+	bpf_printk("helper func called in tc\n");
+	return 0xaaaa;
+}
+
+```
+
+after we compiled it into bpf assembly code, it will be something like
+
+```bash
+kanxu@ubuntu2204:~/Documents/learning-ebpf/chapter2/other-test$ make helper_func_ex1.bpf.o
+clang -g -O2 -Wall -Wextra -Werror -target bpf -c helper_func_ex1.bpf.c -o helper_func_ex1.bpf.o
+
+kanxu@ubuntu2204:~/Documents/learning-ebpf/chapter2/other-test$ llvm-objdump -S helper_func_ex1.bpf.o
+
+helper_func_ex1.bpf.o:	file format elf64-bpf
+
+Disassembly of section tc:
+
+0000000000000000 <helperfunc_entryfunc>:
+; 	bpf_printk("helper func called in tc\n");
+       0:	18 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00	r1 = 0 ll
+       2:	b7 02 00 00 1a 00 00 00	r2 = 26
+       3:	85 00 00 00 06 00 00 00	call 6
+; 	return 0xaaaa;
+       4:	b7 00 00 00 aa aa 00 00	r0 = 43690
+       5:	95 00 00 00 00 00 00 00	exit
+```
+
+we can see that the prog called `bpf_printk()` , which is a warpper for `bpf_trace_printk()`(more details in https://nakryiko.com/posts/bpf-tips-printk/). here we can see a `call 6` instruction in the helper, 6 is the helper function id.
+
+then we load it to kernel
+
+```bash
+➜  other-test git:(main) ✗ sudo bpftool prog load helper_func_ex1.bpf.o /sys/fs/bpf/helper
+➜  other-test git:(main) ✗ sudo bpftool prog dump xlated name helperfunc_entryfunc opcode
+int helperfunc_entryfunc(struct __sk_buff * skb):
+; bpf_printk("helper func called in tc\n");
+   0: (18) r1 = map[id:431][0]+0
+       18 21 00 00 af 01 00 00 00 00 00 00 00 00 00 00
+   2: (b7) r2 = 26
+       b7 02 00 00 1a 00 00 00
+   3: (85) call bpf_trace_printk#-65696
+       85 00 00 00 60 ff fe ff
+; return 0xaaaa;
+   4: (b7) r0 = 43690
+       b7 00 00 00 aa aa 00 00
+   5: (95) exit
+       95 00 00 00 00 00 00 00
+```
+
+we can find that the opcode for helper function call is changed, this is because the verifier did some relocation, the `imm` of bpf instruction is changed to an offset value to offset to `__bpf_call_base`, https://elixir.bootlin.com/linux/v6.10.2/source/kernel/bpf/verifier.c#L20551
+
+```
+       3:	85 00 00 00 06 00 00 00	call 6
+->
+	3: (85) call bpf_trace_printk#-65696
+       85 00 00 00 60 ff fe ff
+```
+
+later in JIT part, it will translate the value to helper function address in kernel, https://elixir.bootlin.com/linux/v6.10.2/source/arch/x86/net/bpf_jit_comp.c#L2039
+
+we can see some address from bpftool prog show
+
+```bash
+➜  other-test git:(main) ✗ sudo bpftool prog dump jited name helperfunc_entryfunc opcode
+int helperfunc_entryfunc(struct __sk_buff * skb):
+bpf_prog_e1a0d70c18e2a9cb_helperfunc_entryfunc:
+; bpf_printk("helper func called in tc\n");
+   0:	nopl	(%rax,%rax)
+	0f 1f 44 00 00
+   5:	nop
+	66 90
+   7:	pushq	%rbp
+	55
+   8:	movq	%rsp, %rbp
+	48 89 e5
+   b:	movabsq	$-112556983896304, %rdi
+	48 bf 10 37 f5 48 a1 99 ff ff
+  15:	movl	$26, %esi
+	be 1a 00 00 00
+  1a:	callq	0xffffffffdb3c0fd8
+	e8 b9 0f 3c db
+; return 0xaaaa;
+  1f:	movl	$43690, %eax
+	b8 aa aa 00 00
+  24:	leave
+	c9
+  25:	retq
+	c3
+```
+
+but actaully the addresss `0xffffffffdb3c0fd8` is not the real helper function address.
+
+To know the real address, we need to check kernel instructions.
+
+```bash
+➜  other-test git:(main) ✗ sudo cat /proc/kallsyms| tail
+ffffffffc076fa54 t bpf_prog_6deef7357e7b4530	[bpf]
+ffffffffc0819124 t bpf_prog_c8b47a902f1cc68b	[bpf]
+ffffffffc088accc t bpf_prog_e3dbd137be8d6168	[bpf]
+ffffffffc08c2308 t bpf_prog_6deef7357e7b4530	[bpf]
+ffffffffc09344f8 t bpf_prog_6deef7357e7b4530	[bpf]
+ffffffffc0a4fbb0 t bpf_prog_ee0e253c78993a24	[bpf]
+ffffffffc0a51868 t bpf_prog_0ecd07b7b633809f	[bpf]
+ffffffffc0a572c8 t bpf_prog_6deef7357e7b4530	[bpf]
+ffffffffc0a59990 t bpf_prog_6deef7357e7b4530	[bpf]
+ffffffffc0a5bb38 t bpf_prog_e1a0d70c18e2a9cb_helperfunc_entryfunc	[bpf]
+➜  other-test git:(main) ✗ sudo gdb -q -c /proc/kcore -ex 'x/10i 0xffffffffc0a5bb38' -ex 'quit'
+[New process 1]
+Core was generated by `BOOT_IMAGE=/boot/vmlinuz-5.15.92+ root=UUID=d34fb81b-584e-43ca-81cf-2582dc21e7b'.
+#0  0x0000000000000000 in ?? ()
+   0xffffffffc0a5bb38:	nopl   0x0(%rax,%rax,1)
+   0xffffffffc0a5bb3d:	xchg   %ax,%ax
+   0xffffffffc0a5bb3f:	push   %rbp
+   0xffffffffc0a5bb40:	mov    %rsp,%rbp
+   0xffffffffc0a5bb43:	movabs $0xffff99a148f53710,%rdi
+   0xffffffffc0a5bb4d:	mov    $0x1a,%esi
+   0xffffffffc0a5bb52:	call   0xffffffff9be1cb10
+   0xffffffffc0a5bb57:	mov    $0xaaaa,%eax
+   0xffffffffc0a5bb5c:	leave
+   0xffffffffc0a5bb5d:	ret
+```
+
+`0xffffffff9be1cb10` is the real bpf_trace_printk helper function address in kernel.
+
+
+
+### How is helper function implemented is kernel
+
+The helper functions in the kernel which are dedicated to BPF (**BPF_CALL_0()** to **BPF_CALL_5()** functions) are specifically designed with this convention in mind.
+
+for bpf_trace_prink, it's implemented as: https://elixir.bootlin.com/linux/v6.10.2/source/kernel/trace/bpf_trace.c#L375
+
+```c
+// /kernel/trace/bpf_trace.c
+BPF_CALL_5(bpf_trace_printk, char *, fmt, u32, fmt_size, u64, arg1,
+	   u64, arg2, u64, arg3)
+{
+	u64 args[MAX_TRACE_PRINTK_VARARGS] = { arg1, arg2, arg3 };
+	struct bpf_bprintf_data data = {
+		.get_bin_args	= true,
+		.get_buf	= true,
+	};
+	int ret;
+
+	ret = bpf_bprintf_prepare(fmt, fmt_size, args,
+				  MAX_TRACE_PRINTK_VARARGS, &data);
+	if (ret < 0)
+		return ret;
+
+	ret = bstr_printf(data.buf, MAX_BPRINTF_BUF, fmt, data.bin_args);
+
+	trace_bpf_trace_printk(data.buf);
+
+	bpf_bprintf_cleanup(&data);
+
+	return ret;
+}
+```
+
+
+
+## bpf2bpf function
+
+we also take an example to see bpf2bpf function details:
+
+```c
+➜  other-test git:(main) ✗ cat sub_call_ex1.bpf.c
+#include <linux/bpf.h>
+#include <bpf/bpf_helpers.h>
+
+#define __unused __attribute__((unused))
+#define __musttail __attribute__((musttail))
+#define __noinline __attribute__((noinline))
+
+char __license[] SEC("license") = "GPL";
+
+static __noinline
+int sub_func(struct __sk_buff *skb __unused)
+{
+	return 0xf00d;
+}
+
+SEC("tc")
+int entry_prog(struct __sk_buff *skb)
+{
+	__musttail return sub_func(skb);
+}
+```
+
+then we compile it to see about its assembly
+
+```bash
+➜  other-test git:(main) ✗ make sub_call_ex1.bpf.o
+clang -g -O2 -Wall -Wextra -Werror -target bpf -c sub_call_ex1.bpf.c -o sub_call_ex1.bpf.o
+➜  other-test git:(main) ✗ llvm-objdump -S sub_call_ex1.bpf.o
+
+sub_call_ex1.bpf.o:	file format elf64-bpf
+
+Disassembly of section .text:
+
+0000000000000000 <sub_func>:
+; 	return 0xf00d;
+       0:	b7 00 00 00 0d f0 00 00	r0 = 61453
+       1:	95 00 00 00 00 00 00 00	exit
+
+Disassembly of section tc:
+
+0000000000000000 <entry_prog>:
+; 	__musttail return sub_func(skb);
+       0:	85 10 00 00 ff ff ff ff	call -1
+       1:	95 00 00 00 00 00 00 00	exit
+```
+
+after we load it to kernel, we can see  they are loaded in one object and displayed as one single prog.
+
+```bash
+➜  other-test git:(main) ✗ sudo bpftool prog load sub_call_ex1.bpf.o /sys/fs/bpf/subcall
+➜  other-test git:(main) ✗ sudo bpftool prog dump xlated name entry_prog
+int entry_prog(struct __sk_buff * skb):
+; __musttail return sub_func(skb);
+   0: (85) call pc+1#bpf_prog_a84919ecd878b8f3_sub_func
+   1: (95) exit
+int sub_func(struct __sk_buff * skb):
+; return 0xf00d;
+   2: (b7) r0 = 61453
+   3: (95) exit
+```
+
+but we can see 3 new symbols in kernel symbols, actually, two entry prog addr are the same, i don't know why there are two same symbol put here.
+
+```
+➜  other-test git:(main) ✗ sudo cat /proc/kallsyms| tail
+ffffffffc08c2308 t bpf_prog_6deef7357e7b4530	[bpf]
+ffffffffc09344f8 t bpf_prog_6deef7357e7b4530	[bpf]
+ffffffffc0a4fbb0 t bpf_prog_ee0e253c78993a24	[bpf]
+ffffffffc0a51868 t bpf_prog_0ecd07b7b633809f	[bpf]
+ffffffffc0a572c8 t bpf_prog_6deef7357e7b4530	[bpf]
+ffffffffc0a59990 t bpf_prog_6deef7357e7b4530	[bpf]
+ffffffffc0a5bb38 t bpf_prog_e1a0d70c18e2a9cb_helperfunc_entryfunc	[bpf]
+ffffffffc0a40460 t bpf_prog_163e74e7188910f2_entry_prog	[bpf]
+ffffffffc0a473f8 t bpf_prog_a84919ecd878b8f3_sub_func	[bpf]
+ffffffffc0a40460 t bpf_prog_dd7a9984bfe90efd_entry_prog	[bpf]
+```
+
+the entry prog addr is `0xffffffffc0a40460`, and target prog addr is `0xffffffffc0a473f8`, we can see target prog is called in entry prog.
+
+```bash
+➜  other-test git:(main) ✗ sudo gdb -q -c /proc/kcore -ex 'x/10i 0xffffffffc0a40460' -ex 'quit'
+[New process 1]
+Core was generated by `BOOT_IMAGE=/boot/vmlinuz-5.15.92+ root=UUID=d34fb81b-584e-43ca-81cf-2582dc21e7b'.
+#0  0x0000000000000000 in ?? ()
+   0xffffffffc0a40460:	nopl   0x0(%rax,%rax,1)
+   0xffffffffc0a40465:	xchg   %ax,%ax
+   0xffffffffc0a40467:	push   %rbp
+   0xffffffffc0a40468:	mov    %rsp,%rbp
+   0xffffffffc0a4046b:	call   0xffffffffc0a473f8
+   0xffffffffc0a40470:	leave
+   0xffffffffc0a40471:	ret
+   0xffffffffc0a40472:	int3
+   0xffffffffc0a40473:	int3
+   0xffffffffc0a40474:	int3
+➜  other-test git:(main) ✗ sudo gdb -q -c /proc/kcore -ex 'x/10i 0xffffffffc0a473f8' -ex 'quit'
+[New process 1]
+Core was generated by `BOOT_IMAGE=/boot/vmlinuz-5.15.92+ root=UUID=d34fb81b-584e-43ca-81cf-2582dc21e7b'.
+#0  0x0000000000000000 in ?? ()
+   0xffffffffc0a473f8:	nopl   0x0(%rax,%rax,1)
+   0xffffffffc0a473fd:	xchg   %ax,%ax
+   0xffffffffc0a473ff:	push   %rbp
+   0xffffffffc0a47400:	mov    %rsp,%rbp
+   0xffffffffc0a47403:	mov    $0xf00d,%eax
+   0xffffffffc0a47408:	leave
+   0xffffffffc0a47409:	ret
+   0xffffffffc0a4740a:	int3
+   0xffffffffc0a4740b:	int3
+   0xffffffffc0a4740c:	int3
+```
+
+## tail call
+
+
+
+
+
+## appendix
+
+about Makefile for compiling each file
+
+```
+```
+
