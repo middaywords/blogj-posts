@@ -185,4 +185,3 @@ ovs_dp_upcall()首先调用queue_userspace_packet()将信息排队发到用户�
 
 * https://zhuanlan.zhihu.com/p/637977332
 * [OVS Deep Dive 0: Overview (arthurchiao.art)](https://arthurchiao.art/blog/ovs-deep-dive-0-overview/)
-* 

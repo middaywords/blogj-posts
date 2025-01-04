@@ -1,5 +1,5 @@
 ---
-title: 2024-1213-kprobe-demystify
+title: kprobe demystify
 date: 2024-12-13 22:16:02
 tags:
 ---
