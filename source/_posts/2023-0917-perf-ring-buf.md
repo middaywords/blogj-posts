@@ -1,5 +1,5 @@
 ---
-title: perf ring buf
+title: bpf perf buf and bpf ring buf
 date: 2023-09-17 10:10:13
 tags:
 - bpf

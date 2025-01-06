@@ -1,5 +1,5 @@
 ---
-title: k8s-cni-bandwidth-plugin
+title: k8s-cni-bandwidth-plugin Head-of-line blocking problem
 date: 2024-03-20 21:50:25
 tags:
 - kubernetes

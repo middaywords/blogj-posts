@@ -1,12 +1,12 @@
 ---
-title: virtio interrupts
+title: virtio interrupts and interrupt stack
 date: 2023-10-08 15:26:35
 tags:
 - virtio
 - kernel
 ---
 
-# from virtio interrupts -> stack -> 
+# from virtio interrupts -> interrupt stack
 
 [TOC]
 
@@ -146,6 +146,6 @@ refer to [2]
 # reference 
 
 1. [Linux内核学习笔记之中断和中断处理 | 普通人 (hjk.life)](https://hjk.life/posts/linux-kernel-interrupt/)
-1. https://blog.csdn.net/yangkuanqaz85988/article/details/52403726 讲内核栈 中断栈的，讲的很好
-1. [中断硬件之Intel架构 (betamao.me)](https://blog.betamao.me/posts/2021/ia-interrupt-hardware/) 
-1. [White Paper: Introduction to Intel® Architecture, The Basics](https://www.intel.com/content/dam/www/public/us/en/documents/white-papers/ia-introduction-basics-paper.pdf) 
+2. https://blog.csdn.net/yangkuanqaz85988/article/details/52403726 讲内核栈 中断栈的，讲的很好
+3. [中断硬件之Intel架构 (betamao.me)](https://blog.betamao.me/posts/2021/ia-interrupt-hardware/) 
+4. [White Paper: Introduction to Intel® Architecture, The Basics](https://www.intel.com/content/dam/www/public/us/en/documents/white-papers/ia-introduction-basics-paper.pdf) 

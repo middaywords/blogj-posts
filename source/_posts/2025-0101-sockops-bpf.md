@@ -1,5 +1,5 @@
 ---
-title: sockops bpf
+title: about sockops bpf
 date: 2025-01-01 10:23:46
 tags:
 - bpf
@@ -10,7 +10,7 @@ tags:
 
 
 
-如 [[1]](https://docs.ebpf.io/linux/program-type/BPF_PROG_TYPE_SOCK_OPS/) 中所述，socket ops 是 attach 到 cgroup，在 socket 的 lifecycle 的特殊 event 里面被调用，从而改变 socket 的行为，做出一些特定的配置。
+如 [docs.ebpf.io](https://docs.ebpf.io/linux/program-type/BPF_PROG_TYPE_SOCK_OPS/) 中所述，socket ops 是 attach 到 cgroup，在 socket 的 lifecycle 的特殊 event 里面被调用，从而改变 socket 的行为，做出一些特定的配置。
 
 > Socket ops programs are attached to cGroups and get called for multiple lifecycle events of a socket, giving the program the opportunity to changes settings per connection or to record the existence of a socket.
 
@@ -180,7 +180,7 @@ static inline bool tcp_bpf_ca_needs_ecn(struct sock *sk)
 }
 ```
 
-* `tcp_conn_request`: server 接收到 syn 包后，创建连接，是否 enable synack
+* `tcp_conn_request`: server 接收到 syn 包后，创建连接，是否 enable ecn
 
 ```
 -> tcp_conn_request
@@ -295,7 +295,9 @@ static int tcp_write_timeout(struct sock *sk)
 > Signed-off-by: Neal Cardwell <ncardwell@google.com>
 > Signed-off-by: David S. Miller <davem@davemloft.net>
 
-* `tcp_xmit_recovery`: 丢包导致的重传， 当 TCP connection 处于 CA_LOSS，或者处于 recovery state 的状态。 https://elixir.bootlin.com/linux/v6.12.6/source/net/ipv4/tcp_input.c#L3060
+* `tcp_xmit_recovery`: 丢包导致的重传， 当 TCP connection 处于 CA_LOSS，或者处于 recovery state 的状态。
+
+   https://elixir.bootlin.com/linux/v6.12.6/source/net/ipv4/tcp_input.c#L3060
 
 * `tcp_non_congestion_loss_retransmit`: 代码中有详细的注释，当出现比如 MTU 变化或者其他原因等，推测不是 congestion 发生时，也需要重传，这种时候不需要减少 cwnd。
 
@@ -372,7 +374,11 @@ tcp_rtt_estimator 这个函数很有意思。可以参考 dog250 大佬的分析
 2. https://zhuanlan.zhihu.com/p/11992081640
 3. https://www.pagefault.info/2012/08/01/rto-calculation-in-tcp-and-implementation-under-linux.html
 
-另外提一句，每个 TCP packet 采样可以参考 https://blog.csdn.net/sinat_20184565/article/details/105000868，是通过 计算 `tcp_mstamp` 和 `skb_mstamp_ns` 的差值得到。
+另外提一句，每个 TCP packet 采样可以参考
+
+ https://blog.csdn.net/sinat_20184565/article/details/105000868
+
+是通过 计算 `tcp_mstamp` 和 `skb_mstamp_ns` 的差值得到。
 
 ```c
 // in tcp_clean_rtx_queue()
@@ -416,11 +422,7 @@ struct tcp_sock {
 
 example: https://elixir.bootlin.com/linux/v6.12.6/source/tools/testing/selftests/bpf/progs/test_misc_tcp_hdr_options.c#L301
 
-可以参考下 patch https://lore.kernel.org/bpf/20200820190104.2885895-1-kafai@fb.com/ ，但我感觉使用起来有些麻烦，得 enable/disable sock_ops 的一些 cb_flags，然后还得区别 syn 包和非 syn 包的情况
-
-
-
-
+可以参考下 patch [patch link](https://lore.kernel.org/bpf/20200820190104.2885895-1-kafai@fb.com/) ，但我感觉使用起来有些麻烦，得 enable/disable sock_ops 的一些 cb_flags，然后还得区别 syn 包和非 syn 包的情况。
 
 
 

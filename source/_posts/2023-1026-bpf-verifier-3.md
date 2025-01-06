@@ -1,5 +1,5 @@
 ---
-title: bpf verifier 3
+title: bpf verifier (3)
 date: 2023-10-26 22:42:51
 tags:
 - bpf

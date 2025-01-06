@@ -1,11 +1,15 @@
 ---
-title: OVN cheatsheet
+title: OVN control path and OVN datapath(stt tunnel)
 date: 2024-11-01 16:45:29
 tags:
 - linux
 - network
 - ovn
 ---
+
+## ovn data path
+
+## ovn control path
 
 ## ovn cheatsheet
 

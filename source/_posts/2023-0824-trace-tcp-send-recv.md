@@ -1,5 +1,5 @@
 ---
-title: trace tcp connect/send/recv
+title: use ftrace/stackcount to find tcp connect/send/recv stack
 date: 2023-08-24 13:19:45
 tags:
 - tcp
@@ -13,8 +13,6 @@ tags:
 ## trace tcp connect/send/recv
 
 这里用 ftrace 记录下 tcp send/recv 的主要调用路径。一方面是查代码总是看调用路径很麻烦，另一方面是 ftrace 的那些操作流程每次都得查一会儿，干脆写一遍笔记记录下，以后方便查。
-
-然后这里也只写了一些 TCP 相关的东西，IP 层的放到以后写吧。然后关于一些函数的具体解释，后面会慢慢补充
 
 machine info:
 
@@ -45,6 +43,8 @@ echo tcp_v4_connect > set_graph_function
 echo 1 > tracing_on # 开始tracing
 echo 0 > tracing_on # 停止tracing
 ```
+
+另外，其实有个类似的 bcc 工具可以看函数调用栈，还挺方便的 [bcc stackcount](https://github.com/iovisor/bcc/blob/master/tools/stackcount_example.txt)
 
 
 
