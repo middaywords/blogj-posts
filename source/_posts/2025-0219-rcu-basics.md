@@ -21,7 +21,7 @@ tags:
 
 因此，从功能上分为以下三个基本的要素：`Reader/Updater/Reclaimer`，三者之间的交互如下图：
 
-![img](https://img2020.cnblogs.com/blog/1771657/202004/1771657-20200411183349989-1834656562.png)
+![img](../figures/image-20250221180439760.png)
 
 1. Reader
    - 使用`rcu_read_lock`和`rcu_read_unlock`来界定读者的临界区，访问受`RCU`保护的数据时，需要始终在该临界区域内访问；
@@ -677,7 +677,7 @@ do {									      \
 
 `synchronize_rcu` 和 `call_rcu` 实现如下图所示
 
-![img](https://img2020.cnblogs.com/blog/1771657/202004/1771657-20200424231037032-1917858077.png)
+![image-20250222231441826](../figures/image-20250222231441826.png)
 
 `wait_rcu_gp()`: 具体代码在下面
 
@@ -797,7 +797,7 @@ __call_rcu_common(struct rcu_head *head, rcu_callback_t func, bool lazy_in)
 
 
 
-![img](https://img2020.cnblogs.com/blog/1771657/202004/1771657-20200424231114207-1997704645.png)
+![image-20250222231547816](../figures/image-20250222231547816.png)
 
 这里我们简要概括下 `__call_rcu_core` 的流程：
 
@@ -832,7 +832,7 @@ static void note_gp_changes(struct rcu_data *rdp)
 
 那么通过`__call_rcu`注册的这些回调函数在哪里调用呢？我们前面提到，答案是在`RCU_SOFTIRQ`软中断中，我们来看看这一部分的执行过程
 
-![img](https://img2020.cnblogs.com/blog/1771657/202004/1771657-20200424231211961-405526075.png)
+![image-20250222231643425](../figures/image-20250222231643425.png)
 
 6.8 kernel 里面 rcu_process_callbacks 换成了 rcu_core
 
@@ -924,7 +924,7 @@ rcu_check_quiescent_state(struct rcu_data *rdp)
 
 ## 4. 宽限期处理
 
-![img](https://img2020.cnblogs.com/blog/1771657/202004/1771657-20200424231238950-269295968.png)
+![image-20250222231726225](../figures/image-20250222231726225.png)
 
 ```c
 /*
@@ -1026,12 +1026,12 @@ static void force_qs_rnp(int (*f)(struct rcu_data *rdp))
 
 1. **初始化和锁定**：
    - 更新 RCU 状态的活动时间。
-   - 锁定根节点 [`rnp`](vscode-file://vscode-app/Applications/Visual Studio Code.app/Contents/Resources/app/out/vs/code/electron-sandbox/workbench/workbench.html)，记录宽限期结束时间，并计算宽限期持续时间。
+   - 锁定根节点`rnp`，记录宽限期结束时间，并计算宽限期持续时间。
 2. **标记宽限期结束**：
-   - 调用 [`rcu_poll_gp_seq_end`](vscode-file://vscode-app/Applications/Visual Studio Code.app/Contents/Resources/app/out/vs/code/electron-sandbox/workbench/workbench.html) 标记宽限期结束，并解锁根节点。
+   - 调用 `rcu_poll_gp_seq_end` 标记宽限期结束，并解锁根节点。
 3. **传播新的宽限期序列**：
-   - 计算新的宽限期序列 [`new_gp_seq`](vscode-file://vscode-app/Applications/Visual Studio Code.app/Contents/Resources/app/out/vs/code/electron-sandbox/workbench/workbench.html)。
-   - 遍历所有 RCU 节点，更新它们的 [`gp_seq`](vscode-file://vscode-app/Applications/Visual Studio Code.app/Contents/Resources/app/out/vs/code/electron-sandbox/workbench/workbench.html)，并检查是否需要新的宽限期。
+   - 计算新的宽限期序列 `new_gp_seq`。
+   - 遍历所有 RCU 节点，更新它们的 `gp_seq`，并检查是否需要新的宽限期。
 4. **处理回调和清理**：
    - 检查和处理回调，清理过载的 CPU。
 5. **检查是否需要新的宽限期**：
@@ -1100,7 +1100,7 @@ static noinline void rcu_gp_cleanup(void)
 
 ## 5. 静止状态处理
 
-![img](https://img2020.cnblogs.com/blog/1771657/202004/1771657-20200424231305329-888937109.png)
+![image-20250222231825035](../figures/image-20250222231825035.png)
 
 update_process_times -> rcu_sched_clock_irq -> rcu_qs
 
@@ -1130,7 +1130,7 @@ static void rcu_qs(void)
 
 ## 6. 状态转换
 
-![img](https://img2020.cnblogs.com/blog/1771657/202004/1771657-20200424231324436-1739791125.png)
+![image-20250222231859402](../figures/image-20250222231859402.png)
 
 
 

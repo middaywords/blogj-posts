@@ -11,6 +11,8 @@ tags:
 
 在这篇文章里，我们则关注 sched core 和 sched cfs 之间的接口交互。
 
+(这篇文章后面没细致写了，感觉这样写脉络不是很清晰。还是从一个 task_group 被 fork 以及被kill 开始说
+
 ## 0. basic concepts
 
 调度类需要实现的所有接口定义在 struct sched_class 里。下面对其中最重要的一些调度类接口做简单的介绍:
@@ -829,7 +831,7 @@ restart:
 
 ## 8. select_task_rq
 
-
+TBD
 
 ## 9. migrate_task_rq & balance
 
@@ -851,6 +853,8 @@ static int sched_balance_newidle(struct rq *this_rq, struct rq_flags *rf) {
 当前进程即将变空的时候，尝试从其他 cpu rq 里拉取 task。
 
 migrate_task_rq 表示当 task 从一个 CPU 迁移到了另一个 CPU 之后，发现准备迁移了，调用 migrate_task_rq 方法。
+
+
 
 
 
