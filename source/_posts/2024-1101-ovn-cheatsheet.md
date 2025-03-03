@@ -13,7 +13,11 @@ tags:
 
 我们这里以 STT tunnel 实现举例
 
-OVN datapath 有三种角色，Hypervisor, IC-gateway, NS-gateway，我们来看下他们的具体实现：
+OVN datapath 有三种角色，Hypervisor, IC-gateway, NS-gateway，架构如图
+
+![image-20250303095258655](../figures/image-20250303095258655.png)
+
+我们来看下他们的具体实现：
 
 ### 1.1 hypervisor
 
