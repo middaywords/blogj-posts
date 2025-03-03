@@ -267,6 +267,10 @@ NS gateway 的 datapath 需要分成 IC-GW -> NS-GW 和 NS-GW -> IC-GW，即北�
 
 ## 2. ovn control path
 
+OVN architecture has a good picture to show OVN control path components.
+
+![image-20250302160927818](../figures/image-20250302160927818.png)
+
 ### 2.1 ovn cheatsheet
 
 find openflow configuration from south to north:
