@@ -1,5 +1,5 @@
 ---
-title: [译] UEC white paper
+title: (译) UEC white paper
 date: 2025-04-24 22:48:11
 tags:
 - network
