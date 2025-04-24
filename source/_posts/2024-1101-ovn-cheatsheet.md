@@ -21,7 +21,7 @@ OVN datapath 有三种角色，Hypervisor, IC-gateway, NS-gateway，架构如图
 
 ### 1.1 hypervisor
 
-![image-20250222233358569](../figures/image-20250222233358569.png)
+![image-20250423114805317](../figures/image-20250423114805317.png)
 
 VM 的 eth0 通过 tap 网卡连接到 tunnel device，如上图所示，是 stt_sys_7471。
 
@@ -29,7 +29,7 @@ VM 的 eth0 通过 tap 网卡连接到 tunnel device，如上图所示，是 stt
 
 我们可以通过数据包的发送和接收过程来一窥 datapath。
 
-在接收过程中，首先包在 obr0 device 中进入内核协议栈进行处理， OVS module 在 LOCAL_IN 加上了一个自定义的 hook `ovs_ip_tunnel_rcv`，如果目的端口为 7471（STT 目的端口），则调用 `netif_rx` 将包转入 tunnel device `stt_sys_7471` 进行处理。在 stt tunnel device 中，它在二层收包 hook 注册了 OVS 的收包逻辑。从而进入 OVS 相关模块进行处理，找到 tunnel IP 对应的 vport 进行转发。最后通过 ip_output() 传入 otap 网卡再传入 eth0。
+在接收过程中，首先包在 eth0 device 中进入内核协议栈进行处理，OVS 在 eth0 上设置了 L2 的处理 hook，会进入 OVS，OVS 会转发到 obr0，这一层毫无意义，进入obr0后，会继续在内核网络协议栈的处理， OVS module 在 LOCAL_IN 加上了一个自定义的 hook `ovs_ip_tunnel_rcv`，如果目的端口为 7471（STT 目的端口），则调用 `netif_rx` 将包转入 tunnel device `stt_sys_7471` 进行处理。在 stt tunnel device 中，它在二层收包 hook 注册了 OVS 的收包逻辑。从而进入 OVS 相关模块进行处理，找到 tunnel IP 对应的 vport 进行转发。最后通过 ip_output() 传入 otap 网卡再传入 eth0。
 
 关于 LOCAL_IN ，可以结合下图参考一下调用位置
 

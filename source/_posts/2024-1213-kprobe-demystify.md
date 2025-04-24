@@ -2,6 +2,8 @@
 title: kprobe demystify
 date: 2024-12-13 22:16:02
 tags:
+- linux
+- kernel
 ---
 
 kprobe  的实现看了好多次，但是总是忘，这里做一些笔记。
