@@ -35,3 +35,29 @@ tcp_ehash_entries                   tcp_min_snd_mss                     tcp_retr
 tcp_fack                            tcp_min_tso_segs                    tcp_retries1    
 ```
 
+
+
+| param                 | Description                                                  |
+| --------------------- | ------------------------------------------------------------ |
+| tcp_abort_on_overflow | If listening service is too slow to accept new connections, reset them. Default state is FALSE. It means that if overflow occurred due to a burst, connection will recover. Enable this option *only* if you are really sure that listening daemon cannot be tuned to accept connections faster. Enabling this option can harm clients of your server. |
+| tcp_adv_win_scale     | used to account for the overhead needed by Linux to process packets. The receive window is specified in terms of user payload bytes. Linux needs additional memory beyond that to track other data associated with packets it is processing. can refer the details in https://blog.cloudflare.com/optimizing-tcp-for-high-throughput-and-low-latency/ |
+| tcp_app_win           |                                                              |
+|                       |                                                              |
+|                       |                                                              |
+|                       |                                                              |
+|                       |                                                              |
+|                       |                                                              |
+|                       |                                                              |
+|                       |                                                              |
+|                       |                                                              |
+|                       |                                                              |
+|                       |                                                              |
+|                       |                                                              |
+|                       |                                                              |
+|                       |                                                              |
+|                       |                                                              |
+|                       |                                                              |
+|                       |                                                              |
+|                       |                                                              |
+|                       |                                                              |
+

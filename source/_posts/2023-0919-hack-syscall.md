@@ -293,4 +293,4 @@ kanxu@ubuntu2204:~/Documents/test_syscall$ ./mod_test
 ### reference 
 
 1. [Adding a New System Call — The Linux Kernel documentation](https://www.kernel.org/doc/html/v4.10/process/adding-syscalls.html) 
-2. [lkmpg/examples/syscall.c at master · sysprog21/lkmpg · GitHub](
+2. [lkmpg/examples/syscall.c at master · sysprog21/lkmpg · GitHub]
