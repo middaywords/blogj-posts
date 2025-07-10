@@ -218,4 +218,5 @@ root@ubuntu2204:/home/kanxu/Documents/jammy/tools/testing/selftests/bpf# cat ./v
 1. kernel docs about verifier
    1. https://arthurchiao.art/blog/linux-socket-filtering-aka-bpf-zh/
    2. https://docs.kernel.org/bpf/verifier.html
-2. 
+   
+   
